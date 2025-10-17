@@ -1,30 +1,70 @@
 // server.js - Backend API Server
 const express = require('express');
 const cors = require('cors');
-const { Client: PgClient } = require('pg');
-const mysql = require('mysql2/promise');
+// const { Client: PgClient } = require('pg');
+// const mysql = require('mysql2/promise');
 const oracledb = require('oracledb');
-const { Snowflake } = require('snowflake-sdk');
-const OpenAI = require('openai');
+// const { Snowflake } = require('snowflake-sdk');
+// const OpenAI = require('openai');
 const fs = require('fs').promises;
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Initialize Oracle thick client
+try {
+  oracledb.initOracleClient({
+    libDir: process.env.ORACLE_CLIENT_LIB_DIR || '/opt/oracle/instantclient_21_1'
+  });
+  console.log('✓ Oracle thick client initialized');
+} catch (err) {
+  console.error('Oracle thick client initialization error:', err);
+  console.log('⚠ Running with thin client mode');
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// OpenAI Configuration
-let openaiClient = null;
+// Elevance Health API Configuration (replaces OpenAI)
+let elevanceApiKey = process.env.ELEVANCE_API_KEY;
 let tokenRefreshInterval = null;
 
-const initializeOpenAI = () => {
-  openaiClient = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-  });
-  console.log('✓ OpenAI client initialized');
+const ELEVANCE_API_BASE = 'https://api.horizon.elevancehealth.com/v2';
+
+const callElevanceAPI = async (messages, options = {}) => {
+  try {
+    const response = await fetch(`${ELEVANCE_API_BASE}/text/chats`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${elevanceApiKey}`,
+        ...options.headers
+      },
+      body: JSON.stringify({
+        messages: messages,
+        temperature: options.temperature || 0.7,
+        max_tokens: options.max_tokens || 2000,
+        model: options.model || 'gpt-4-turbo-preview'
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Elevance API request failed');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Elevance API Error:', error);
+    throw error;
+  }
+};
+
+const initializeElevanceAPI = () => {
+  elevanceApiKey = process.env.ELEVANCE_API_KEY;
+  console.log('✓ Elevance Health API client initialized');
 };
 
 // Token refresh job - runs every 14 minutes
@@ -34,9 +74,9 @@ const startTokenRefreshJob = () => {
   }
   
   tokenRefreshInterval = setInterval(() => {
-    console.log('🔄 Refreshing OpenAI token...');
-    initializeOpenAI();
-    console.log('✓ OpenAI token refreshed at', new Date().toISOString());
+    console.log('🔄 Refreshing Elevance API token...');
+    initializeElevanceAPI();
+    console.log('✓ Elevance API token refreshed at', new Date().toISOString());
   }, 14 * 60 * 1000); // 14 minutes
   
   console.log('✓ Token refresh job started (every 14 minutes)');
@@ -78,48 +118,48 @@ class DatabaseMetadata {
 
   async testConnection(dbConfig) {
     switch (dbConfig.type) {
-      case 'postgres':
-        return this.testPostgres(dbConfig);
-      case 'mysql':
-        return this.testMySQL(dbConfig);
+      // case 'postgres':
+      //   return this.testPostgres(dbConfig);
+      // case 'mysql':
+      //   return this.testMySQL(dbConfig);
       case 'oracle':
         return this.testOracle(dbConfig);
-      case 'snowflake':
-        return this.testSnowflake(dbConfig);
+      // case 'snowflake':
+      //   return this.testSnowflake(dbConfig);
       default:
         throw new Error(`Unsupported database type: ${dbConfig.type}`);
     }
   }
 
-  async testPostgres(config) {
-    const client = new PgClient({
-      host: config.host,
-      port: config.port,
-      database: config.database,
-      user: config.username,
-      password: config.password,
-      ssl: config.ssl ? { rejectUnauthorized: false } : false
-    });
-    
-    await client.connect();
-    await client.query('SELECT 1');
-    await client.end();
-    return true;
-  }
+  // async testPostgres(config) {
+  //   const client = new PgClient({
+  //     host: config.host,
+  //     port: config.port,
+  //     database: config.database,
+  //     user: config.username,
+  //     password: config.password,
+  //     ssl: config.ssl ? { rejectUnauthorized: false } : false
+  //   });
+  //   
+  //   await client.connect();
+  //   await client.query('SELECT 1');
+  //   await client.end();
+  //   return true;
+  // }
 
-  async testMySQL(config) {
-    const connection = await mysql.createConnection({
-      host: config.host,
-      port: config.port,
-      database: config.database,
-      user: config.username,
-      password: config.password
-    });
-    
-    await connection.query('SELECT 1');
-    await connection.end();
-    return true;
-  }
+  // async testMySQL(config) {
+  //   const connection = await mysql.createConnection({
+  //     host: config.host,
+  //     port: config.port,
+  //     database: config.database,
+  //     user: config.username,
+  //     password: config.password
+  //   });
+  //   
+  //   await connection.query('SELECT 1');
+  //   await connection.end();
+  //   return true;
+  // }
 
   async testOracle(config) {
     const connection = await oracledb.getConnection({
@@ -133,33 +173,33 @@ class DatabaseMetadata {
     return true;
   }
 
-  async testSnowflake(config) {
-    return new Promise((resolve, reject) => {
-      const connection = Snowflake.createConnection({
-        account: config.account,
-        username: config.username,
-        password: config.password,
-        warehouse: config.warehouse,
-        database: config.database,
-        schema: config.schema
-      });
+  // async testSnowflake(config) {
+  //   return new Promise((resolve, reject) => {
+  //     const connection = Snowflake.createConnection({
+  //       account: config.account,
+  //       username: config.username,
+  //       password: config.password,
+  //       warehouse: config.warehouse,
+  //       database: config.database,
+  //       schema: config.schema
+  //     });
 
-      connection.connect((err) => {
-        if (err) {
-          reject(err);
-        } else {
-          connection.execute({
-            sqlText: 'SELECT 1',
-            complete: (err) => {
-              connection.destroy();
-              if (err) reject(err);
-              else resolve(true);
-            }
-          });
-        }
-      });
-    });
-  }
+  //     connection.connect((err) => {
+  //       if (err) {
+  //         reject(err);
+  //       } else {
+  //         connection.execute({
+  //           sqlText: 'SELECT 1',
+  //           complete: (err) => {
+  //             connection.destroy();
+  //             if (err) reject(err);
+  //             else resolve(true);
+  //           }
+  //         });
+  //       }
+  //     });
+  //   });
+  // }
 
   async executeQuery(dbId, query) {
     const metadata = await this.loadMetadata();
@@ -170,48 +210,48 @@ class DatabaseMetadata {
     }
 
     switch (dbConfig.type) {
-      case 'postgres':
-        return this.queryPostgres(dbConfig, query);
-      case 'mysql':
-        return this.queryMySQL(dbConfig, query);
+      // case 'postgres':
+      //   return this.queryPostgres(dbConfig, query);
+      // case 'mysql':
+      //   return this.queryMySQL(dbConfig, query);
       case 'oracle':
         return this.queryOracle(dbConfig, query);
-      case 'snowflake':
-        return this.querySnowflake(dbConfig, query);
+      // case 'snowflake':
+      //   return this.querySnowflake(dbConfig, query);
       default:
         throw new Error(`Unsupported database type: ${dbConfig.type}`);
     }
   }
 
-  async queryPostgres(config, query) {
-    const client = new PgClient({
-      host: config.host,
-      port: config.port,
-      database: config.database,
-      user: config.username,
-      password: config.password,
-      ssl: config.ssl ? { rejectUnauthorized: false } : false
-    });
-    
-    await client.connect();
-    const result = await client.query(query);
-    await client.end();
-    return result.rows;
-  }
+  // async queryPostgres(config, query) {
+  //   const client = new PgClient({
+  //     host: config.host,
+  //     port: config.port,
+  //     database: config.database,
+  //     user: config.username,
+  //     password: config.password,
+  //     ssl: config.ssl ? { rejectUnauthorized: false } : false
+  //   });
+  //   
+  //   await client.connect();
+  //   const result = await client.query(query);
+  //   await client.end();
+  //   return result.rows;
+  // }
 
-  async queryMySQL(config, query) {
-    const connection = await mysql.createConnection({
-      host: config.host,
-      port: config.port,
-      database: config.database,
-      user: config.username,
-      password: config.password
-    });
-    
-    const [rows] = await connection.query(query);
-    await connection.end();
-    return rows;
-  }
+  // async queryMySQL(config, query) {
+  //   const connection = await mysql.createConnection({
+  //     host: config.host,
+  //     port: config.port,
+  //     database: config.database,
+  //     user: config.username,
+  //     password: config.password
+  //   });
+  //   
+  //   const [rows] = await connection.query(query);
+  //   await connection.end();
+  //   return rows;
+  // }
 
   async queryOracle(config, query) {
     const connection = await oracledb.getConnection({
@@ -225,33 +265,33 @@ class DatabaseMetadata {
     return result.rows;
   }
 
-  async querySnowflake(config, query) {
-    return new Promise((resolve, reject) => {
-      const connection = Snowflake.createConnection({
-        account: config.account,
-        username: config.username,
-        password: config.password,
-        warehouse: config.warehouse,
-        database: config.database,
-        schema: config.schema
-      });
+  // async querySnowflake(config, query) {
+  //   return new Promise((resolve, reject) => {
+  //     const connection = Snowflake.createConnection({
+  //       account: config.account,
+  //       username: config.username,
+  //       password: config.password,
+  //       warehouse: config.warehouse,
+  //       database: config.database,
+  //       schema: config.schema
+  //     });
 
-      connection.connect((err) => {
-        if (err) {
-          reject(err);
-        } else {
-          connection.execute({
-            sqlText: query,
-            complete: (err, stmt, rows) => {
-              connection.destroy();
-              if (err) reject(err);
-              else resolve(rows);
-            }
-          });
-        }
-      });
-    });
-  }
+  //     connection.connect((err) => {
+  //       if (err) {
+  //         reject(err);
+  //       } else {
+  //         connection.execute({
+  //           sqlText: query,
+  //           complete: (err, stmt, rows) => {
+  //             connection.destroy();
+  //             if (err) reject(err);
+  //             else resolve(rows);
+  //           }
+  //         });
+  //       }
+  //     });
+  //   });
+  // }
 }
 
 // Initialize services
@@ -266,7 +306,8 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    openai: openaiClient ? 'connected' : 'disconnected'
+    elevanceApi: elevanceApiKey ? 'connected' : 'disconnected',
+    oracle: 'enabled'
   });
 });
 
@@ -338,36 +379,36 @@ app.post('/api/query', async (req, res) => {
   }
 });
 
-// Chat with AI
+// Chat with AI (using Elevance Health API)
 app.post('/api/chat', async (req, res) => {
   try {
     const { messages, databaseId, context } = req.body;
 
-    if (!openaiClient) {
-      return res.status(503).json({ error: 'OpenAI service not available' });
+    if (!elevanceApiKey) {
+      return res.status(503).json({ error: 'Elevance API service not available' });
     }
 
     // Get database schema for context
     const metadata = await dbMetadata.loadMetadata();
     const db = metadata.databases.find(d => d.id === databaseId);
     
-    const systemPrompt = `You are a data analytics assistant. You have access to a ${db?.type || 'SQL'} database with the following schema:
+    const systemPrompt = `You are a data analytics assistant. You have access to an ${db?.type || 'Oracle'} database with the following schema:
 
 ${JSON.stringify(db?.tables || [], null, 2)}
 
 Generate SQL queries and provide insights based on user questions. Always return responses in JSON format with:
 - message: A clear explanation
 - query: The SQL query to execute (if applicable)
-- visualization: Suggested visualization type (line, bar, pie, etc.)
+- visualization: Suggested visualization type (line, bar, scatter, donut)
 
 Previous context: ${JSON.stringify(context || {})}`;
 
-    const completion = await openaiClient.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages
-      ],
+    const apiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages
+    ];
+
+    const completion = await callElevanceAPI(apiMessages, {
       temperature: 0.7,
       max_tokens: 2000
     });
@@ -397,13 +438,13 @@ Previous context: ${JSON.stringify(context || {})}`;
   }
 });
 
-// Generate visualization from data
+// Generate visualization from data (using Elevance Health API)
 app.post('/api/visualize', async (req, res) => {
   try {
     const { data, query } = req.body;
 
-    if (!openaiClient) {
-      return res.status(503).json({ error: 'OpenAI service not available' });
+    if (!elevanceApiKey) {
+      return res.status(503).json({ error: 'Elevance API service not available' });
     }
 
     const prompt = `Based on this SQL query and data, suggest the best visualization.
@@ -445,14 +486,14 @@ Consider:
 - Use "line" for time-based or sequential data
 - Use "bar" for categorical comparisons`;
 
-    const completion = await openaiClient.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      messages: [
-        { role: 'system', content: 'You are a data visualization expert. Always return valid JSON.' },
-        { role: 'user', content: prompt }
-      ],
+    const messages = [
+      { role: 'system', content: 'You are a data visualization expert. Always return valid JSON.' },
+      { role: 'user', content: prompt }
+    ];
+
+    const completion = await callElevanceAPI(messages, {
       temperature: 0.3,
-      response_format: { type: "json_object" }
+      max_tokens: 1000
     });
 
     const suggestion = JSON.parse(completion.choices[0].message.content);
@@ -466,8 +507,8 @@ Consider:
 // Start server
 const startServer = async () => {
   try {
-    // Initialize OpenAI
-    initializeOpenAI();
+    // Initialize Elevance API
+    initializeElevanceAPI();
     
     // Start token refresh job
     startTokenRefreshJob();
@@ -477,8 +518,8 @@ const startServer = async () => {
     
     app.listen(PORT, () => {
       console.log(`\n🚀 Server running on http://localhost:${PORT}`);
-      console.log(`✓ OpenAI integration active`);
-      console.log(`✓ Database connections validated`);
+      console.log(`✓ Elevance Health API integration active`);
+      console.log(`✓ Oracle database connection validated`);
       console.log(`✓ Token refresh job scheduled\n`);
     });
   } catch (error) {
@@ -505,3 +546,5 @@ process.on('SIGINT', () => {
 });
 
 startServer();
+
+// Duplicate block removed — deduplicated DatabaseMetadata and server/routes are defined earlier in this file.

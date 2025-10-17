@@ -3,121 +3,115 @@
   "lastUpdated": "2025-10-15T00:00:00Z",
   "databases": [
     {
-      "id": "pg1",
-      "name": "PostgreSQL - Sales",
-      "type": "postgres",
+      "id": "ora1",
+      "name": "Oracle - Primary Database",
+      "type": "oracle",
       "host": "localhost",
-      "port": 5432,
-      "database": "sales_db",
-      "username": "postgres",
-      "password": "${POSTGRES_PASSWORD}",
-      "ssl": false,
-      "schema": "public",
+      "port": 1521,
+      "database": "ORCL",
+      "username": "system",
+      "password": "${ORACLE_PASSWORD}",
+      "schema": "MAIN",
       "tables": [
         {
-          "name": "sales_transactions",
+          "name": "SALES_TRANSACTIONS",
           "description": "Daily sales transaction records",
           "columns": [
             {
-              "name": "id",
-              "type": "SERIAL",
+              "name": "ID",
+              "type": "NUMBER",
               "primaryKey": true
             },
             {
-              "name": "transaction_date",
-              "type": "TIMESTAMP",
+              "name": "TRANSACTION_DATE",
+              "type": "DATE",
               "description": "Date and time of transaction"
             },
             {
-              "name": "amount",
-              "type": "DECIMAL(10,2)",
+              "name": "AMOUNT",
+              "type": "NUMBER(10,2)",
               "description": "Transaction amount in dollars"
             },
             {
-              "name": "customer_id",
-              "type": "INTEGER",
+              "name": "CUSTOMER_ID",
+              "type": "NUMBER",
               "description": "Reference to customer"
             },
             {
-              "name": "product_id",
-              "type": "INTEGER",
+              "name": "PRODUCT_ID",
+              "type": "NUMBER",
               "description": "Reference to product"
             },
             {
-              "name": "quantity",
-              "type": "INTEGER",
+              "name": "QUANTITY",
+              "type": "NUMBER",
               "description": "Number of items purchased"
             },
             {
-              "name": "created_at",
+              "name": "CREATED_AT",
               "type": "TIMESTAMP",
               "description": "Record creation timestamp"
             }
           ]
         },
         {
-          "name": "customers",
+          "name": "CUSTOMERS",
           "description": "Customer information",
           "columns": [
             {
-              "name": "id",
-              "type": "SERIAL",
+              "name": "ID",
+              "type": "NUMBER",
               "primaryKey": true
             },
             {
-              "name": "name",
-              "type": "VARCHAR(255)"
+              "name": "NAME",
+              "type": "VARCHAR2(255)"
             },
             {
-              "name": "email",
-              "type": "VARCHAR(255)"
+              "name": "EMAIL",
+              "type": "VARCHAR2(255)"
             },
             {
-              "name": "registration_date",
+              "name": "AGE",
+              "type": "NUMBER"
+            },
+            {
+              "name": "SEGMENT",
+              "type": "VARCHAR2(50)"
+            },
+            {
+              "name": "REGISTRATION_DATE",
               "type": "DATE"
             }
           ]
         },
         {
-          "name": "products",
+          "name": "PRODUCTS",
           "description": "Product catalog",
           "columns": [
             {
-              "name": "id",
-              "type": "SERIAL",
+              "name": "ID",
+              "type": "NUMBER",
               "primaryKey": true
             },
             {
-              "name": "name",
-              "type": "VARCHAR(255)"
+              "name": "NAME",
+              "type": "VARCHAR2(255)"
             },
             {
-              "name": "category",
-              "type": "VARCHAR(100)"
+              "name": "CATEGORY",
+              "type": "VARCHAR2(100)"
             },
             {
-              "name": "price",
-              "type": "DECIMAL(10,2)"
+              "name": "PRICE",
+              "type": "NUMBER(10,2)"
             },
             {
-              "name": "stock_quantity",
-              "type": "INTEGER"
+              "name": "STOCK_QUANTITY",
+              "type": "NUMBER"
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "ora1",
-      "name": "Oracle - Inventory",
-      "type": "oracle",
-      "host": "localhost",
-      "port": 1521,
-      "database": "ORCL",
-      "username": "inventory_user",
-      "password": "${ORACLE_PASSWORD}",
-      "schema": "INVENTORY",
-      "tables": [
+        },
         {
           "name": "WAREHOUSE_STOCK",
           "description": "Current warehouse inventory levels",
@@ -165,173 +159,6 @@
             {
               "name": "CAPACITY",
               "type": "NUMBER"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "mysql1",
-      "name": "MySQL - Users",
-      "type": "mysql",
-      "host": "localhost",
-      "port": 3306,
-      "database": "users_db",
-      "username": "mysql_user",
-      "password": "${MYSQL_PASSWORD}",
-      "tables": [
-        {
-          "name": "users",
-          "description": "Application user accounts",
-          "columns": [
-            {
-              "name": "id",
-              "type": "INT AUTO_INCREMENT",
-              "primaryKey": true
-            },
-            {
-              "name": "username",
-              "type": "VARCHAR(100)"
-            },
-            {
-              "name": "email",
-              "type": "VARCHAR(255)"
-            },
-            {
-              "name": "created_at",
-              "type": "DATETIME"
-            },
-            {
-              "name": "last_login",
-              "type": "DATETIME"
-            },
-            {
-              "name": "status",
-              "type": "ENUM('active', 'inactive', 'suspended')"
-            }
-          ]
-        },
-        {
-          "name": "user_activity",
-          "description": "User activity logs",
-          "columns": [
-            {
-              "name": "id",
-              "type": "BIGINT AUTO_INCREMENT",
-              "primaryKey": true
-            },
-            {
-              "name": "user_id",
-              "type": "INT"
-            },
-            {
-              "name": "activity_type",
-              "type": "VARCHAR(50)"
-            },
-            {
-              "name": "activity_timestamp",
-              "type": "DATETIME"
-            },
-            {
-              "name": "ip_address",
-              "type": "VARCHAR(45)"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "snow1",
-      "name": "Snowflake - Analytics",
-      "type": "snowflake",
-      "account": "your-account.snowflakecomputing.com",
-      "username": "analytics_user",
-      "password": "${SNOWFLAKE_PASSWORD}",
-      "warehouse": "COMPUTE_WH",
-      "database": "ANALYTICS_DB",
-      "schema": "PUBLIC",
-      "tables": [
-        {
-          "name": "DAILY_METRICS",
-          "description": "Aggregated daily business metrics",
-          "columns": [
-            {
-              "name": "METRIC_DATE",
-              "type": "DATE",
-              "primaryKey": true
-            },
-            {
-              "name": "TOTAL_REVENUE",
-              "type": "NUMBER(15,2)"
-            },
-            {
-              "name": "TOTAL_ORDERS",
-              "type": "NUMBER"
-            },
-            {
-              "name": "ACTIVE_USERS",
-              "type": "NUMBER"
-            },
-            {
-              "name": "AVG_ORDER_VALUE",
-              "type": "NUMBER(10,2)"
-            }
-          ]
-        },
-        {
-          "name": "CUSTOMER_SEGMENTS",
-          "description": "Customer segmentation data",
-          "columns": [
-            {
-              "name": "SEGMENT_ID",
-              "type": "NUMBER",
-              "primaryKey": true
-            },
-            {
-              "name": "SEGMENT_NAME",
-              "type": "VARCHAR(100)"
-            },
-            {
-              "name": "CUSTOMER_COUNT",
-              "type": "NUMBER"
-            },
-            {
-              "name": "AVG_LIFETIME_VALUE",
-              "type": "NUMBER(10,2)"
-            },
-            {
-              "name": "LAST_UPDATED",
-              "type": "TIMESTAMP_NTZ"
-            }
-          ]
-        },
-        {
-          "name": "PRODUCT_PERFORMANCE",
-          "description": "Product sales analytics",
-          "columns": [
-            {
-              "name": "PRODUCT_ID",
-              "type": "NUMBER"
-            },
-            {
-              "name": "PRODUCT_NAME",
-              "type": "VARCHAR(255)"
-            },
-            {
-              "name": "CATEGORY",
-              "type": "VARCHAR(100)"
-            },
-            {
-              "name": "TOTAL_SALES",
-              "type": "NUMBER(15,2)"
-            },
-            {
-              "name": "UNITS_SOLD",
-              "type": "NUMBER"
-            },
-            {
-              "name": "REPORTING_PERIOD",
-              "type": "DATE"
             }
           ]
         }
